@@ -192,11 +192,23 @@ install_selected_script() {
     echo -e "${YELLOW}Select the script to install:${NC}"
     echo ""
     local index=1
-    for script_name in "${!scripts[@]}"; do
-        echo -e "${BLUE}[${index}]${NC} ${YELLOW}${script_name}${NC}"
-        index=$((index + 1))
+    local num_scripts=${#scripts[@]}
+    local scripts_per_line=2
+    local num_lines=$(( (num_scripts + scripts_per_line - 1) / scripts_per_line ))
+
+    for ((line=0; line<num_lines; line++)); do
+        local start_index=$((line * scripts_per_line + 1))
+        local end_index=$((start_index + scripts_per_line - 1))
+        [ $end_index -gt $num_scripts ] && end_index=$num_scripts
+
+        for ((i=start_index; i<=end_index; i++)); do
+            local script_name=${!scripts[@] | sed -n "${i}p"}
+            printf "%b[%d]%b %s   " "${BLUE}" "$i" "${NC}" "${YELLOW}${script_name}${NC}"
+        done
+        echo ""
     done
-    echo -e "${BLUE}[${index}]${NC} ${YELLOW}cancel${NC}"
+
+    echo -e "${BLUE}[${num_scripts + 1}]${NC} ${YELLOW}cancel${NC}"
     echo ""
     select choice in "${!scripts[@]}" "cancel"; do
         execute_action "$choice"
