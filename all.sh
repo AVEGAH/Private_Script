@@ -187,3 +187,30 @@ install_script() {
 }
 
 # Function to install the selected script
+install_selected_script() {
+    echo -e "${YELLOW}Select the script to install:${NC}"
+    select choice in "${!scripts[@]}" "cancel"; do
+        execute_action "$choice"
+        break
+    done
+}
+
+# Main logic
+show_header
+echo -e "${YELLOW}Choose verification method:${NC}"
+echo "1. Bot Verification"
+echo "2. IP Validation"
+read -p "Enter your choice (1 or 2): " verification_choice
+
+case $verification_choice in
+    1)
+        send_verification_code
+        ;;
+    2)
+        validate_ip
+        ;;
+    *)
+        echo -e "${RED}Invalid choice. Exiting.${NC}"
+        exit 1
+        ;;
+esac
