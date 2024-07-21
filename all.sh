@@ -189,13 +189,34 @@ install_script() {
 # Function to install the selected script
 install_selected_script() {
     echo -e "${YELLOW}Select the script to install:${NC}"
-    PS3="Enter the number corresponding to your choice: "
-    select choice in "${!scripts[@]}" "cancel"; do
-        if [[ -n "$choice" ]]; then
-            execute_action "$choice"
-            break
+    local index=1
+    for script_name in "${!scripts[@]}"; do
+        echo "$index. $script_name"
+        ((index++))
+    done
+    echo "$index. cancel"
+    
+    attempts=2
+    while [[ $attempts -ge 0 ]]; do
+        read -p "Enter your choice ($index for cancel): " choice
+        clear_screen
+        show_header
+
+        if [[ $choice =~ ^[0-9]+$ ]] && ((choice >= 1 && choice <= index)); then
+            if [[ $choice -eq $index ]]; then
+                echo -e "${YELLOW}Installation canceled.${NC}"
+                exit 0
+            else
+                script_name=$(echo "${!scripts[@]}" | cut -d' ' -f"$choice")
+                if [[ -n "${scripts[$script_name]}" ]]; then
+                    execute_action "$script_name"
+                    exit 0
+                else
+                    echo -e "${RED}Invalid action.${NC}"
+                fi
+            fi
         else
-            echo -e "${RED}Invalid choice. Please try again.${NC}"
+            invalid_choice $attempts
             attempts=$((attempts - 1))
             if [[ $attempts -lt 0 ]]; then
                 echo -e "${RED}Too many invalid attempts. Exiting.${NC}"
@@ -205,11 +226,17 @@ install_selected_script() {
     done
 }
 
-# Function to handle invalid verification choice
-invalid_choice() {
-    clear_screen
-    show_header
-    echo -e "${RED}Invalid choice. You have $1 attempts remaining.${NC}"
+# Function to decode Base64 and verify the passcode
+verify_passcode() {
+    local entered_passcode=$1
+    local decoded_hash=$(echo "$encoded_hash" | base64 --decode)
+    local entered_hash=$(echo -n "$entered_passcode" | sha256sum | awk '{print $1}')
+    
+    if [[ "$entered_hash" == "$decoded_hash" ]]; then
+        return 0  # Passcode matches
+    else
+        return 1  # Passcode does not match
+    fi
 }
 
 # Function to handle invalid passcode entry
@@ -221,6 +248,8 @@ invalid_passcode() {
 
 # Main logic
 show_header
+
+encoded_hash="OGQ5NjlfMzA4YjgzZjk3ZTc4ZTk2ZTA0YzgwNGEwNmUzZmU="
 
 attempts=2
 while [[ $attempts -ge 0 ]]; do
@@ -243,18 +272,18 @@ while [[ $attempts -ge 0 ]]; do
             break
             ;;
         3)
-            passcode_attempts=2
-            while [[ $passcode_attempts -ge 0 ]]; do
-                read -sp "Enter passcode: " passcode
+            pwd_atpt=2
+            while [[ $pwd_atpt -ge 0 ]]; do
+                read -sp "Enter passcode: " pwd
                 echo
-                if [[ "$passcode" == "maptech" ]]; then
+                if verify_passcode "$pwd"; then
                     echo -e "${GREEN}Passcode verification successful.${NC}"
                     install_selected_script
                     exit 0
                 else
-                    invalid_passcode $passcode_attempts
-                    passcode_attempts=$((passcode_attempts - 1))
-                    if [[ $passcode_attempts -lt 0 ]]; then
+                    invalid_passcode $pwd_atpt
+                    pwd_atpt=$((pwd_atpt - 1))
+                    if [[ $pwd_atpt -lt 0 ]]; then
                         echo -e "${RED}Too many incorrect passcode attempts. Exiting.${NC}"
                         exit 1
                     fi
