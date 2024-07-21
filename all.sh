@@ -144,7 +144,7 @@ send_verification_code() {
     echo -e "\033[1;31m          ALL IN ONE VPS SCRIPT INSTALLATION\033[0m"
     echo -e "\033[1;36m==============================================================\033[0m"
     echo ""
-    echo -e "\033[1;32m              t.me/wmaptechvpsscriptbot  \033[0m on Telegram"
+    echo -e "\033[1;32m              t.me/maptechvpsscriptbot  \033[0m on Telegram"
     echo ""
     echo -e "\033[1;36m==============================================================\033[0m"
     echo ""
@@ -188,6 +188,7 @@ install_script() {
 
 # Function to install the selected script
 install_selected_script() {
+    clear_screen
     echo -e "${YELLOW}Select the script to install:${NC}"
     select choice in "${!scripts[@]}" "cancel"; do
         execute_action "$choice"
@@ -201,6 +202,8 @@ echo -e "${YELLOW}Choose verification method:${NC}"
 echo "1. Bot Verification"
 echo "2. IP Validation"
 read -p "Enter your choice (1 or 2): " verification_choice
+
+clear_screen
 
 case $verification_choice in
     1)
