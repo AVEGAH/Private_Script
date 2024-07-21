@@ -27,6 +27,9 @@ NC='\033[0m' # No Color
 VCHECK_DIR="/root/vcheck"
 VCHECK_FILE="$VCHECK_DIR/.storage.txt"
 
+# Define the encrypted passcode (hashed or encoded in some form)
+ENCRYPTED_PASSCODE="6b1b7a582b68a76e64f2b1a6c85d83a943e7c2f4"
+
 # Function to clear screen
 clear_screen() {
     clear
@@ -157,21 +160,8 @@ send_verification_code() {
     # Check if user entered the correct verification code
     if [[ "$user_code" == "$verification_code" ]]; then
         echo -e "${GREEN}Verification successful.${NC}"
-        # Store the code along with the IP address and current time in the storage file
+        # Store the code along with IP address and current timestamp
         echo "$ipv4_address $verification_code $current_time" >> "$VCHECK_FILE"
-        install_selected_script
-    else
-        echo -e "${RED}Incorrect verification code.${NC}"
-        send_verification_code
-    fi
-}
-
-# Function to check the verification code entered by the user
-check_verification_code() {
-    local user_code=$1
-    local stored_code=$(awk -v ip="$ipv4_address" '$1 == ip {print $2}' "$VCHECK_FILE")
-    if [[ "$user_code" == "$stored_code" ]]; then
-        echo -e "${GREEN}Verification successful.${NC}"
         install_selected_script
     else
         echo -e "${RED}Incorrect verification code.${NC}"
@@ -233,13 +223,18 @@ install_selected_script() {
     done
 }
 
-# Function to decode Base64 and verify the passcode
+# Function to encode passcode
+encode_passcode() {
+    echo -n "$1" | sha1sum | awk '{print $1}'
+}
+
+# Function to verify the passcode
 verify_passcode() {
     local entered_passcode=$1
-    local decoded_hash=$(echo "$encoded_hash" | base64 --decode)
-    local entered_hash=$(echo -n "$entered_passcode" | sha256sum | awk '{print $1}')
+    local encoded_passcode="6b1b7a582b68a76e64f2b1a6c85d83a943e7c2f4"
+    local entered_hash=$(encode_passcode "$entered_passcode")
     
-    if [[ "$entered_hash" == "$decoded_hash" ]]; then
+    if [[ "$entered_hash" == "$encoded_passcode" ]]; then
         return 0  # Passcode matches
     else
         return 1  # Passcode does not match
@@ -255,8 +250,6 @@ invalid_passcode() {
 
 # Main logic
 show_header
-
-encoded_hash="OGQ5NjlfMzA4YjgzZjk3ZTc4ZTk2ZTA0YzgwNGEwNmUzZmU="
 
 attempts=2
 while [[ $attempts -ge 0 ]]; do
