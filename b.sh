@@ -1,9 +1,11 @@
-
 #!/bin/bash
 
 # Telegram bot token and chat ID
-BOT_TOKEN="7380565425:AAFFIJ_GOhqWkC4ANzQTEiR06v6CBXtlL7g"
-CHANNEL_ID="-1002148915754"  # Your Telegram channel ID
+BOT_TOKEN="your_bot_token_here"
+CHANNEL_ID="your_channel_id_here"
+
+# URL to fetch allowed IP list
+ALLOWED_IP_URL="https://example.com/allowed_ips.txt"
 
 # Define the list of commands
 declare -A scripts
@@ -47,9 +49,6 @@ show_header() {
 execute_action() {
     local action=$1
     case $action in
-        "send_verification_code")
-            send_verification_code
-            ;;
         "cancel")
             echo -e "${YELLOW}Installation canceled.${NC}"
             exit 0
@@ -62,6 +61,29 @@ execute_action() {
             fi
             ;;
     esac
+}
+
+# Function to fetch the user's IP address
+fetch_user_ip() {
+    user_ip=$(curl -s https://ipinfo.io/ip)
+}
+
+# Function to fetch the allowed IP list
+fetch_allowed_ips() {
+    allowed_ips=$(curl -s "$ALLOWED_IP_URL")
+}
+
+# Function to check if the user's IP is in the allowed list
+validate_ip() {
+    fetch_user_ip
+    fetch_allowed_ips
+    if echo "$allowed_ips" | grep -q "$user_ip"; then
+        echo -e "${GREEN}IP address validation successful.${NC}"
+        install_selected_script
+    else
+        echo -e "${RED}IP address validation failed. Your IP ($user_ip) is not allowed to run this script.${NC}"
+        exit 1
+    fi
 }
 
 # Function to send message via Telegram including IPv4 address
@@ -165,54 +187,3 @@ install_script() {
 }
 
 # Function to install the selected script
-install_selected_script() {
-    show_header
-    echo -e "${YELLOW}Select an option to install:${NC}"
-    show_options
-    prompt_for_option
-    option_number=$?
-    if (( option_number > 0 && option_number <= ${#scripts[@]} + 1 )); then
-        i=1
-        for key in "${!scripts[@]}"; do
-            if (( i == option_number )); then
-                install_script "${scripts[$key]}"
-            fi
-            ((i++))
-        done
-        if (( option_number == ${#scripts[@]} + 1 )); then
-            execute_action "cancel"
-        fi
-    else
-        echo -e "${RED}Invalid option number.${NC}"
-        exit 1
-    fi
-}
-
-# Show the table for option selection
-show_options() {
-    echo -e "-------------------------------------"
-    i=1
-    for key in "${!scripts[@]}"; do
-        echo "| $i) $key"
-        ((i++))
-    done
-    echo "| $i) Cancel"
-    echo -e "-------------------------------------"
-}
-
-# Prompt user for option selection
-prompt_for_option() {
-    read -p "Enter the number corresponding to your choice: " option_number
-    if [[ $option_number =~ ^[0-9]+$ ]]; then
-        if (( option_number > 0 && option_number <= ${#scripts[@]} + 1 )); then
-            return $option_number
-        fi
-    fi
-    return 0
-}
-
-# Show the header once at the start
-show_header
-
-# Send verification code via Telegram
-send_verification_code
