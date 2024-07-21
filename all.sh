@@ -144,7 +144,7 @@ send_verification_code() {
     echo -e "\033[1;31m          ALL IN ONE VPS SCRIPT INSTALLATION\033[0m"
     echo -e "\033[1;36m==============================================================\033[0m"
     echo ""
-    echo -e "\033[1;32m              t.me/maptechvpsscriptbot  \033[0m on Telegram"
+    echo -e "\033[1;32m              t.me/wmaptechvpsscriptbot  \033[0m on Telegram"
     echo ""
     echo -e "\033[1;36m==============================================================\033[0m"
     echo ""
@@ -188,33 +188,8 @@ install_script() {
 
 # Function to install the selected script
 install_selected_script() {
-    clear_screen
     echo -e "${YELLOW}Select the script to install:${NC}"
-    echo ""
-
-    # List script names into an array
-    local script_names=("${!scripts[@]}")
-
-    # Calculate the number of scripts and lines needed
-    local num_scripts=${#script_names[@]}
-    local scripts_per_line=2
-    local num_lines=$(( (num_scripts + scripts_per_line - 1) / scripts_per_line ))
-
-    for ((line=0; line<num_lines; line++)); do
-        local start_index=$((line * scripts_per_line))
-        local end_index=$((start_index + scripts_per_line - 1))
-        [ $end_index -ge $num_scripts ] && end_index=$((num_scripts - 1))
-
-        for ((i=start_index; i<=end_index; i++)); do
-            local script_name=${script_names[$i]}
-            printf "%b[%d]%b %s   " "${BLUE}" "$((i + 1))" "${NC}" "${YELLOW}${script_name}${NC}"
-        done
-        echo ""
-    done
-
-    echo -e "${BLUE}[$((num_scripts + 1))]${NC} ${YELLOW}cancel${NC}"
-    echo ""
-    select choice in "${script_names[@]}" "cancel"; do
+    select choice in "${!scripts[@]}" "cancel"; do
         execute_action "$choice"
         break
     done
@@ -226,8 +201,6 @@ echo -e "${YELLOW}Choose verification method:${NC}"
 echo "1. Bot Verification"
 echo "2. IP Validation"
 read -p "Enter your choice (1 or 2): " verification_choice
-
-clear_screen
 
 case $verification_choice in
     1)
