@@ -204,6 +204,7 @@ echo "3. Passcode Verification"
 read -p "Enter your choice (1, 2, or 3): " verification_choice
 
 clear_screen
+show_header
 
 case $verification_choice in
     1)
