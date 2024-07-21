@@ -27,19 +27,7 @@ NC='\033[0m' # No Color
 VCHECK_DIR="/root/vcheck"
 VCHECK_FILE="$VCHECK_DIR/.storage.txt"
 
-# Base64 encoding and decoding functions
-encode_passcode() {
-    echo -n "$1" | base64
-}
-
-decode_passcode() {
-    echo "$1" | base64 --decode
-}
-
-# Encrypted passcode for "null"
-ENCRYPTED_PASSCODE=$(encode_passcode "null")
-
-# Function to clear the screen
+# Function to clear screen
 clear_screen() {
     clear
 }
@@ -57,53 +45,22 @@ show_header() {
     echo -e "${NC}"
 }
 
-# Function to run the selected script or action
-execute_action() {
-    local action=$1
-    case $action in
-        "cancel")
-            echo -e "${YELLOW}Installation canceled.${NC}"
-            exit 0
-            ;;
-        *)
-            if [[ ${scripts[$action]} ]]; then
-                install_script "${scripts[$action]}"
-            else
-                echo -e "${RED}Invalid action.${NC}"
-            fi
-            ;;
-    esac
-}
-
-# Function to fetch the user's IP address
-fetch_user_ip() {
-    user_ip=$(curl -s https://ipinfo.io/ip)
-}
-
-# Function to fetch the allowed IP list
-fetch_allowed_ips() {
-    allowed_ips=$(curl -s "$ALLOWED_IP_URL")
-}
-
-# Function to check if the user's IP is in the allowed list
-validate_ip() {
-    fetch_user_ip
-    fetch_allowed_ips
-    if echo "$allowed_ips" | grep -q "$user_ip"; then
-        echo -e "${GREEN}IP address validation successful.${NC}"
-        install_selected_script
-    else
-        echo -e "${RED}IP address validation failed. Your IP ($user_ip) is not allowed to run this script.${NC}"
-        exit 1
-    fi
-}
-
 # Function to send message via Telegram including IPv4 address
 send_telegram_message() {
     local message="$1"
     local url="https://api.telegram.org/bot$BOT_TOKEN/sendMessage"
     local data="chat_id=$CHANNEL_ID&text=$message"
-    curl -s -d "$data" "$url" > /dev/null
+    
+    # Send the message
+    response=$(curl -s -w "%{http_code}" -o /dev/null -d "$data" "$url")
+    
+    # Check for success response
+    if [[ "$response" -eq 200 ]]; then
+        echo "Message sent successfully."
+    else
+        echo -e "${RED}Failed to send message. HTTP status code: $response${NC}"
+        exit 1
+    fi
 }
 
 # Function to send verification code via Telegram
@@ -125,7 +82,7 @@ send_verification_code() {
     local last_sent_code=$(awk -v ip="$ipv4_address" '$1 == ip {print $2}' "$VCHECK_FILE")
     local last_sent_time=$(awk -v ip="$ipv4_address" '$1 == ip {print $3}' "$VCHECK_FILE")
 
-    # Adjust the time interval here (e.g., 3600 for 1 hour)
+    # Adjust the time interval here (e.g., 600 for 10 minutes)
     if [[ -n "$last_sent_code" && $((current_time - last_sent_time)) -lt 3600 ]]; then
         # Calculate remaining time in seconds
         local time_left=$((3600 - (current_time - last_sent_time)))
@@ -163,51 +120,71 @@ send_verification_code() {
     echo -e "\033[1;31m  Get the verification code from our Telegram bot {T & C}  \033[0m"
     echo ""
 
-    # Save the generated code and timestamp in storage file
-    echo "$ipv4_address $verification_code $current_time" >> "$VCHECK_FILE"
-}
+    # Prompt user for verification code
+    echo -e "\033[1;36mPlease check Telegram for the verification code.\033[0m"
+    read -p "Enter the verification code received: " user_code
 
-# Function to check verification code
-check_verification_code() {
-    local input_code="$1"
-    local decoded_passcode=$(decode_passcode "$ENCRYPTED_PASSCODE")
-
-    # Validate the input code
-    if [[ "$input_code" == "$decoded_passcode" ]]; then
-        echo -e "${GREEN}Verification code is correct.${NC}"
+    # Check if user entered the correct verification code
+    if [[ "$user_code" == "$verification_code" ]]; then
+        echo -e "${GREEN}Verification successful.${NC}"
+        # Store the code along with the IP address and current time in the storage file
+        echo "$ipv4_address $verification_code $current_time" >> "$VCHECK_FILE"
         install_selected_script
     else
-        echo -e "${RED}Incorrect verification code. Please try again.${NC}"
-        exit 1
+        echo -e "${RED}Incorrect verification code.${NC}"
+        send_verification_code
     fi
 }
 
-# Function to install selected script
+# Function to check the verification code entered by the user
+check_verification_code() {
+    local user_code=$1
+    local stored_code=$(awk -v ip="$ipv4_address" '$1 == ip {print $2}' "$VCHECK_FILE")
+    if [[ "$user_code" == "$stored_code" ]]; then
+        echo -e "${GREEN}Verification successful.${NC}"
+        install_selected_script
+    else
+        echo -e "${RED}Incorrect verification code.${NC}"
+        send_verification_code
+    fi
+}
+
+# Function to install the selected script
 install_script() {
-    local command="$1"
-    echo -e "${YELLOW}Executing installation script...${NC}"
+    local command=$1
+    echo -e "${GREEN}Running command: $command${NC}"
     eval "$command"
 }
 
-# Function to prompt for and handle user action
+# Function to install the selected script
 install_selected_script() {
-    show_header
-    echo -e "${BLUE}Select the installation script:${NC}"
-    PS3='Please enter your choice: '
-    select option in "${!scripts[@]}" "Cancel"; do
-        case $REPLY in
-            [1-$((${#scripts[@]}+1))])
-                execute_action "$option"
-                break
-                ;;
-            *)
-                echo -e "${RED}Invalid option. Please try again.${NC}"
-                ;;
-        esac
+    echo -e "${YELLOW}Select the script to install:${NC}"
+    PS3="Enter the number corresponding to your choice: "
+    select choice in "${!scripts[@]}" "cancel"; do
+        if [[ -n "$choice" ]]; then
+            execute_action "$choice"
+            break
+        else
+            echo -e "${RED}Invalid choice.${NC}"
+        fi
     done
 }
 
-# Main script execution
+# Function to handle invalid verification choice
+invalid_choice() {
+    clear_screen
+    show_header
+    echo -e "${RED}Invalid choice. You have $1 attempts remaining.${NC}"
+}
+
+# Function to handle invalid passcode entry
+invalid_passcode() {
+    clear_screen
+    show_header
+    echo -e "${RED}Incorrect passcode. You have $1 attempts remaining.${NC}"
+}
+
+# Main logic
 show_header
 
 attempts=2
@@ -235,7 +212,7 @@ while [[ $attempts -ge 0 ]]; do
             while [[ $passcode_attempts -ge 0 ]]; do
                 read -sp "Enter passcode: " passcode
                 echo
-                if [[ "$(encode_passcode "$passcode")" == "$ENCRYPTED_PASSCODE" ]]; then
+                if [[ "$passcode" == "maptech" ]]; then
                     echo -e "${GREEN}Passcode verification successful.${NC}"
                     install_selected_script
                     exit 0
