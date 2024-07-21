@@ -1,11 +1,90 @@
 #!/bin/bash
 
-# Telegram bot token and chat ID
-BOT_TOKEN="7380565425:AAFFIJ_GOhqWkC4ANzQTEiR06v6CBXtlL7g"
-CHANNEL_ID="-1002148915754"
+# Define the encrypted passcode (Base64 encoded)
+ENCRYPTED_PASSCODE="gWQwHQ=="
 
-# URL to fetch allowed IP list
-ALLOWED_IP_URL="https://raw.githubusercontent.com/AVEGAH/null/main/dell.txt"
+# XOR encryption key
+KEY="maptech"
+
+# XOR encryption function
+xor_encrypt() {
+    local text="$1"
+    local key="$2"
+    local output=""
+    local key_length=${#key}
+    for ((i=0; i<${#text}; i++)); do
+        local text_char="${text:i:1}"
+        local key_char="${key:i%key_length:1}"
+        output+=$(printf "\\x$(printf %x "$(( $(printf "%d" "'$text_char'") ^ $(printf "%d" "'$key_char'") ))")")
+    done
+    echo "$output"
+}
+
+# Decode passcode function
+decode_passcode() {
+    local encoded_passcode="$1"
+    local decoded_passcode=$(echo "$encoded_passcode" | base64 --decode)
+    echo $(xor_encrypt "$decoded_passcode" "$KEY")
+}
+
+# Function to verify the passcode
+verify_passcode() {
+    local entered_passcode=$1
+    local decoded_passcode=$(decode_passcode "$ENCRYPTED_PASSCODE")
+    
+    if [[ "$entered_passcode" == "$decoded_passcode" ]]; then
+        return 0  # Passcode matches
+    else
+        return 1  # Passcode does not match
+    fi
+}
+
+# Function to handle invalid passcode entry
+invalid_passcode() {
+    clear_screen
+    show_header
+    echo -e "${RED}Incorrect passcode. You have $1 attempts remaining.${NC}"
+}
+
+# Function to clear the screen
+clear_screen() {
+    clear
+}
+
+# ASCII Art Header
+show_header() {
+    clear_screen
+    echo -e "${BLUE}"
+    echo "   ███╗   ███╗ █████╗ ██████╗ ████████╗███████╗ ██████╗██╗  ██╗"
+    echo "   ████╗ ████║██╔══██╗██╔══██╗╚══██╔══╝██╔════╝██╔════╝██║  ██║"
+    echo "   ██╔████╔██║███████║██████╔╝   ██║   █████╗  ██║     ███████║"
+    echo "   ██║╚██╔╝██║██╔══██║██╔═══╝    ██║   ██╔══╝  ██║     ██╔══██║"
+    echo "   ██║ ╚═╝ ██║██║  ██║██║        ██║   ███████╗╚██████╗██║  ██║"
+    echo "   ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝        ╚═╝   ╚══════╝ ╚═════╝╚═╝  ╚═╝"
+    echo -e "${NC}"
+}
+
+# Function to install the selected script
+install_script() {
+    local command=$1
+    echo -e "${GREEN}Running command: $command${NC}"
+    eval "$command"
+}
+
+# Function to install the selected script
+install_selected_script() {
+    echo -e "${YELLOW}Select the script to install:${NC}"
+    select choice in "${!scripts[@]}" "cancel"; do
+        if [[ ${scripts[$choice]} ]]; then
+            install_script "${scripts[$choice]}"
+        else
+            clear_screen
+            show_header
+            echo -e "${RED}Invalid option. Please try again.${NC}"
+        fi
+        break
+    done
+}
 
 # Define the list of commands
 declare -A scripts
@@ -26,68 +105,6 @@ NC='\033[0m' # No Color
 # Verification storage directory and file
 VCHECK_DIR="/root/vcheck"
 VCHECK_FILE="$VCHECK_DIR/.storage.txt"
-
-# Define the encrypted passcode (hashed or encoded in some form)
-ENCRYPTED_PASSCODE="6b1b7a582b68a76e64f2b1a6c85d83a943e7c2f4"  # Update this with correct hash
-
-# Function to clear screen
-clear_screen() {
-    clear
-}
-
-# ASCII Art Header
-show_header() {
-    clear_screen
-    echo -e "${BLUE}"
-    echo "   ███╗   ███╗ █████╗ ██████╗ ████████╗███████╗ ██████╗██╗  ██╗"
-    echo "   ████╗ ████║██╔══██╗██╔══██╗╚══██╔══╝██╔════╝██╔════╝██║  ██║"
-    echo "   ██╔████╔██║███████║██████╔╝   ██║   █████╗  ██║     ███████║"
-    echo "   ██║╚██╔╝██║██╔══██║██╔═══╝    ██║   ██╔══╝  ██║     ██╔══██║"
-    echo "   ██║ ╚═╝ ██║██║  ██║██║        ██║   ███████╗╚██████╗██║  ██║"
-    echo "   ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝        ╚═╝   ╚══════╝ ╚═════╝╚═╝  ╚═╝"
-    echo -e "${NC}"
-}
-
-# Function to run the selected script or action
-execute_action() {
-    local action=$1
-    case $action in
-        "cancel")
-            echo -e "${YELLOW}Installation canceled.${NC}"
-            exit 0
-            ;;
-        *)
-            if [[ ${scripts[$action]} ]]; then
-                install_script "${scripts[$action]}"
-            else
-                echo -e "${RED}Invalid action.${NC}"
-            fi
-            ;;
-    esac
-}
-
-# Function to fetch the user's IP address
-fetch_user_ip() {
-    user_ip=$(curl -s https://ipinfo.io/ip)
-}
-
-# Function to fetch the allowed IP list
-fetch_allowed_ips() {
-    allowed_ips=$(curl -s "$ALLOWED_IP_URL")
-}
-
-# Function to check if the user's IP is in the allowed list
-validate_ip() {
-    fetch_user_ip
-    fetch_allowed_ips
-    if echo "$allowed_ips" | grep -q "$user_ip"; then
-        echo -e "${GREEN}IP address validation successful.${NC}"
-        install_selected_script
-    else
-        echo -e "${RED}IP address validation failed. Your IP ($user_ip) is not allowed to run this script.${NC}"
-        exit 1
-    fi
-}
 
 # Function to send message via Telegram including IPv4 address
 send_telegram_message() {
@@ -156,156 +173,35 @@ send_verification_code() {
 
     # Prompt user for verification code
     read -p "Enter the verification code received: " user_code
-    check_verification_code "$user_code"
-}
 
-# Function to check the verification code
-check_verification_code() {
-    local entered_code=$1
-    local current_time=$(date +%s)
-
-    # Check if the verification code is valid
-    local stored_code=$(awk -v ip="$ipv4_address" '$1 == ip {print $2}' "$VCHECK_FILE")
-    local stored_time=$(awk -v ip="$ipv4_address" '$1 == ip {print $3}' "$VCHECK_FILE")
-
-    if [[ "$entered_code" == "$stored_code" && $((current_time - stored_time)) -lt 3600 ]]; then
-        # Update verification log with IPv4 address, verification code, and current timestamp
+    # Check if user entered the correct verification code
+    if [[ "$user_code" == "$verification_code" ]]; then
+        echo -e "${GREEN}Verification successful.${NC}"
+        # Store the code along with the IP address and current time in the storage file
         echo "$ipv4_address $verification_code $current_time" >> "$VCHECK_FILE"
-        install_selected_script
     else
         echo -e "${RED}Incorrect verification code.${NC}"
-        send_verification_code
+        exit 1
     fi
 }
 
-# Function to handle invalid choices
-invalid_choice() {
-    clear_screen
-    show_header
-    echo -e "${RED}Invalid choice. You have $1 attempts remaining.${NC}"
-}
-
-# Function to install the selected script
-install_script() {
-    local command=$1
-    echo -e "${GREEN}Running command: $command${NC}"
-    eval "$command"
-}
-
-# Function to install the selected script
-install_selected_script() {
-    echo -e "${YELLOW}Select the script to install:${NC}"
-    local index=1
-    for script_name in "${!scripts[@]}"; do
-        echo "$index. $script_name"
-        ((index++))
-    done
-    echo "$index. cancel"
-    
-    attempts=2
-    while [[ $attempts -ge 0 ]]; do
-        read -p "Enter your choice ($index for cancel): " choice
-        clear_screen
-        show_header
-
-        if [[ $choice =~ ^[0-9]+$ ]] && ((choice >= 1 && choice <= index)); then
-            if [[ $choice -eq $index ]]; then
-                echo -e "${YELLOW}Installation canceled.${NC}"
-                exit 0
-            else
-                script_name=$(echo "${!scripts[@]}" | cut -d' ' -f"$choice")
-                if [[ -n "${scripts[$script_name]}" ]]; then
-                    execute_action "$script_name"
-                    exit 0
-                else
-                    echo -e "${RED}Invalid action.${NC}"
-                fi
-            fi
-        else
-            invalid_choice $attempts
-            attempts=$((attempts - 1))
-            if [[ $attempts -lt 0 ]]; then
-                echo -e "${RED}Too many invalid attempts. Exiting.${NC}"
-                exit 1
-            fi
-        fi
-    done
-}
-
-# Function to encode passcode using SHA-1
-encode_passcode() {
-    echo -n "$1" | sha1sum | awk '{print $1}'
-}
-
-# Function to verify the passcode
-verify_passcode() {
-    local entered_passcode=$1
-    local encoded_passcode="6b1b7a582b68a76e64f2b1a6c85d83a943e7c2f4"
-    local entered_hash=$(encode_passcode "$entered_passcode")
-    
-    if [[ "$entered_hash" == "$encoded_passcode" ]]; then
-        return 0  # Passcode matches
-    else
-        return 1  # Passcode does not match
-    fi
-}
-
-# Function to handle invalid passcode entry
-invalid_passcode() {
-    clear_screen
-    show_header
-    echo -e "${RED}Incorrect passcode. You have $1 attempts remaining.${NC}"
-}
-
-# Main logic
+# Main logic for passcode verification
 show_header
 
-attempts=2
-while [[ $attempts -ge 0 ]]; do
-    echo -e "${YELLOW}Choose verification method:${NC}"
-    echo "1. Bot Verification"
-    echo "2. IP Validation"
-    echo "3. Passcode Verification"
-    read -p "Enter your choice (1, 2, or 3): " verification_choice
-
-    clear_screen
-    show_header
-
-    case $verification_choice in
-        1)
-            send_verification_code
-            break
-            ;;
-        2)
-            validate_ip
-            break
-            ;;
-        3)
-            pwd_atpt=2
-            while [[ $pwd_atpt -ge 0 ]]; do
-                read -sp "Enter passcode: " pwd
-                echo
-                if verify_passcode "$pwd"; then
-                    echo -e "${GREEN}Passcode verification successful.${NC}"
-                    install_selected_script
-                    exit 0
-                else
-                    invalid_passcode $pwd_atpt
-                    pwd_atpt=$((pwd_atpt - 1))
-                    if [[ $pwd_atpt -lt 0 ]]; then
-                        echo -e "${RED}Too many incorrect passcode attempts. Exiting.${NC}"
-                        exit 1
-                    fi
-                fi
-            done
-            ;;
-        *)
-            invalid_choice $attempts
-            attempts=$((attempts - 1))
-            if [[ $attempts -lt 0 ]]; then
-                echo -e "${RED}Too many invalid attempts. Exiting.${NC}"
-                exit 1
-            fi
-            ;;
-    esac
+pwd_atpt=2
+while [[ $pwd_atpt -ge 0 ]]; do
+    read -sp "Enter passcode: " pwd
+    echo
+    if verify_passcode "$pwd"; then
+        echo -e "${GREEN}Passcode verification successful.${NC}"
+        install_selected_script
+        exit 0
+    else
+        invalid_passcode $pwd_atpt
+        pwd_atpt=$((pwd_atpt - 1))
+        if [[ $pwd_atpt -lt 0 ]]; then
+            echo -e "${RED}Too many incorrect passcode attempts. Exiting.${NC}"
+            exit 1
+        fi
+    fi
 done
