@@ -195,37 +195,55 @@ install_selected_script() {
     done
 }
 
+# Function to handle invalid verification choice
+invalid_choice() {
+    clear_screen
+    show_header
+    echo -e "${RED}Invalid choice. You have $1 attempts remaining.${NC}"
+}
+
 # Main logic
 show_header
-echo -e "${YELLOW}Choose verification method:${NC}"
-echo "1. Bot Verification"
-echo "2. IP Validation"
-echo "3. Passcode Verification"
-read -p "Enter your choice (1, 2, or 3): " verification_choice
 
-clear_screen
-show_header
+attempts=2
+while [[ $attempts -ge 0 ]]; do
+    echo -e "${YELLOW}Choose verification method:${NC}"
+    echo "1. Bot Verification"
+    echo "2. IP Validation"
+    echo "3. Passcode Verification"
+    read -p "Enter your choice (1, 2, or 3): " verification_choice
 
-case $verification_choice in
-    1)
-        send_verification_code
-        ;;
-    2)
-        validate_ip
-        ;;
-    3)
-        read -sp "Enter passcode: " passcode
-        echo
-        if [[ "$passcode" == "maptech" ]]; then
-            echo -e "${GREEN}Passcode verification successful.${NC}"
-            install_selected_script
-        else
-            echo -e "${RED}Incorrect passcode. Exiting.${NC}"
-            exit 1
-        fi
-        ;;
-    *)
-        echo -e "${RED}Invalid choice. Exiting.${NC}"
-        exit 1
-        ;;
-esac
+    clear_screen
+    show_header
+
+    case $verification_choice in
+        1)
+            send_verification_code
+            break
+            ;;
+        2)
+            validate_ip
+            break
+            ;;
+        3)
+            read -sp "Enter passcode: " passcode
+            echo
+            if [[ "$passcode" == "maptech" ]]; then
+                echo -e "${GREEN}Passcode verification successful.${NC}"
+                install_selected_script
+                break
+            else
+                echo -e "${RED}Incorrect passcode. Exiting.${NC}"
+                exit 1
+            fi
+            ;;
+        *)
+            invalid_choice $attempts
+            attempts=$((attempts - 1))
+            if [[ $attempts -lt 0 ]]; then
+                echo -e "${RED}Too many invalid attempts. Exiting.${NC}"
+                exit 1
+            fi
+            ;;
+    esac
+done
