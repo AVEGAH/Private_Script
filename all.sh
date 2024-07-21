@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# GitHub repository URL for passcode
+GITHUB_REPO="https://raw.githubusercontent.com/AVEGAH/Private_Script/main/passcode.txt"
+
 # Telegram bot token and chat ID
 BOT_TOKEN="7380565425:AAFFIJ_GOhqWkC4ANzQTEiR06v6CBXtlL7g"
 CHANNEL_ID="-1002148915754"
@@ -43,6 +46,24 @@ show_header() {
     echo "   ██║ ╚═╝ ██║██║  ██║██║        ██║   ███████╗╚██████╗██║  ██║"
     echo "   ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝        ╚═╝   ╚══════╝ ╚═════╝╚═╝  ╚═╝"
     echo -e "${NC}"
+}
+
+# Fetch the Base64 encoded passcode from GitHub
+fetch_passcode() {
+    encoded_passcode=$(curl -s "$GITHUB_REPO")
+    passcode=$(echo "$encoded_passcode" | base64 --decode)
+}
+
+# Function to verify the passcode
+verify_passcode() {
+    fetch_passcode
+    if [[ "$passcode" == "$input_passcode" ]]; then
+        echo -e "${GREEN}Passcode verification successful.${NC}"
+        install_selected_script
+    else
+        echo -e "${RED}Incorrect passcode.${NC}"
+        exit 1
+    fi
 }
 
 # Function to run the selected script or action
@@ -157,25 +178,30 @@ send_verification_code() {
     # Check if user entered the correct verification code
     if [[ "$user_code" == "$verification_code" ]]; then
         echo -e "${GREEN}Verification successful.${NC}"
-        # Store the code along with the IP address and current time in the storage file
+        # Store the IP address and verification code along with timestamp
         echo "$ipv4_address $verification_code $current_time" >> "$VCHECK_FILE"
         install_selected_script
     else
         echo -e "${RED}Incorrect verification code.${NC}"
-        send_verification_code
+        exit 1
     fi
 }
 
-# Function to check the verification code entered by the user
+# Function to verify the code entered by the user
 check_verification_code() {
     local user_code=$1
-    local stored_code=$(awk -v ip="$ipv4_address" '$1 == ip {print $2}' "$VCHECK_FILE")
-    if [[ "$user_code" == "$stored_code" ]]; then
+    local current_time=$(date +%s)
+
+    # Check if the code is valid
+    local last_sent_code=$(awk -v ip="$ipv4_address" '$1 == ip {print $2}' "$VCHECK_FILE")
+    local last_sent_time=$(awk -v ip="$ipv4_address" '$1 == ip {print $3}' "$VCHECK_FILE")
+
+    if [[ "$user_code" == "$last_sent_code" && $((current_time - last_sent_time)) -lt 3600 ]]; then
         echo -e "${GREEN}Verification successful.${NC}"
         install_selected_script
     else
-        echo -e "${RED}Incorrect verification code.${NC}"
-        send_verification_code
+        echo -e "${RED}Incorrect or expired verification code.${NC}"
+        exit 1
     fi
 }
 
@@ -245,20 +271,10 @@ while [[ $attempts -ge 0 ]]; do
         3)
             passcode_attempts=2
             while [[ $passcode_attempts -ge 0 ]]; do
-                read -sp "Enter passcode: " passcode
+                read -sp "Enter passcode: " input_passcode
                 echo
-                if [[ "$passcode" == "maptech" ]]; then
-                    echo -e "${GREEN}Passcode verification successful.${NC}"
-                    install_selected_script
-                    exit 0
-                else
-                    invalid_passcode $passcode_attempts
-                    passcode_attempts=$((passcode_attempts - 1))
-                    if [[ $passcode_attempts -lt 0 ]]; then
-                        echo -e "${RED}Too many incorrect passcode attempts. Exiting.${NC}"
-                        exit 1
-                    fi
-                fi
+                verify_passcode
+                break
             done
             ;;
         *)
