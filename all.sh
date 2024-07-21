@@ -45,29 +45,39 @@ show_header() {
     echo -e "${NC}"
 }
 
-# Function to fetch the user's IP address
+# Function to run the selected script or action
+execute_action() {
+    local action=$1
+    case $action in
+        "cancel")
+            echo -e "${YELLOW}Installation canceled.${NC}"
+            exit 0
+            ;;
+        *)
+            if [[ ${scripts[$action]} ]]; then
+                install_script "${scripts[$action]}"
+            else
+                echo -e "${RED}Invalid action.${NC}"
+            fi
+            ;;
+    esac
+}
+
+# Function to fetch the user's IPv4 address
 fetch_user_ip() {
-    user_ip=$(curl -s ifconfig.me)
-    echo "User IP: $user_ip"
+    user_ip=$(curl -s https://api.ipify.org)  # Use ipify.org to get IPv4 address
 }
 
 # Function to fetch the allowed IP list
 fetch_allowed_ips() {
-    allowed_ips=$(curl -s "$ALLOWED_IP_URL" || echo "")
-    echo "Allowed IPs: $allowed_ips"
+    allowed_ips=$(curl -s "$ALLOWED_IP_URL")
 }
 
 # Function to check if the user's IP is in the allowed list
 validate_ip() {
     fetch_user_ip
     fetch_allowed_ips
-
-    # Debug output for fetched IPs
-    echo "User IP: $user_ip"
-    echo "Allowed IPs: $allowed_ips"
-
-    # Check if user IP is in the allowed list
-    if echo "$allowed_ips" | grep -w "$user_ip" >/dev/null; then
+    if echo "$allowed_ips" | grep -q "$user_ip"; then
         echo -e "${GREEN}IP address validation successful.${NC}"
         install_selected_script
     else
@@ -81,17 +91,7 @@ send_telegram_message() {
     local message="$1"
     local url="https://api.telegram.org/bot$BOT_TOKEN/sendMessage"
     local data="chat_id=$CHANNEL_ID&text=$message"
-    
-    # Send the message
-    response=$(curl -s -w "%{http_code}" -o /dev/null -d "$data" "$url")
-    
-    # Check for success response
-    if [[ "$response" -eq 200 ]]; then
-        echo "Message sent successfully."
-    else
-        echo -e "${RED}Failed to send message. HTTP status code: $response${NC}"
-        exit 1
-    fi
+    curl -s -d "$data" "$url" > /dev/null
 }
 
 # Function to send verification code via Telegram
@@ -195,7 +195,12 @@ install_selected_script() {
             execute_action "$choice"
             break
         else
-            echo -e "${RED}Invalid choice.${NC}"
+            echo -e "${RED}Invalid choice. Please try again.${NC}"
+            attempts=$((attempts - 1))
+            if [[ $attempts -lt 0 ]]; then
+                echo -e "${RED}Too many invalid attempts. Exiting.${NC}"
+                exit 1
+            fi
         fi
     done
 }
