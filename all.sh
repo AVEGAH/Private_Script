@@ -45,6 +45,31 @@ show_header() {
     echo -e "${NC}"
 }
 
+# Function to fetch the user's IP address
+fetch_user_ip() {
+    user_ip=$(curl -s ifconfig.me)
+    echo "User IP: $user_ip"
+}
+
+# Function to fetch the allowed IP list
+fetch_allowed_ips() {
+    allowed_ips=$(curl -s "$ALLOWED_IP_URL" || echo "")
+    echo "Allowed IPs: $allowed_ips"
+}
+
+# Function to check if the user's IP is in the allowed list
+validate_ip() {
+    fetch_user_ip
+    fetch_allowed_ips
+    if echo "$allowed_ips" | grep -q "$user_ip"; then
+        echo -e "${GREEN}IP address validation successful.${NC}"
+        install_selected_script
+    else
+        echo -e "${RED}IP address validation failed. Your IP ($user_ip) is not allowed to run this script.${NC}"
+        exit 1
+    fi
+}
+
 # Function to send message via Telegram including IPv4 address
 send_telegram_message() {
     local message="$1"
