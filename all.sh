@@ -179,6 +179,13 @@ check_verification_code() {
     fi
 }
 
+# Function to handle invalid choices
+invalid_choice() {
+    clear_screen
+    show_header
+    echo -e "${RED}Invalid choice. You have $1 attempts remaining.${NC}"
+}
+
 # Function to install the selected script
 install_script() {
     local command=$1
