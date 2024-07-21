@@ -8,7 +8,7 @@ invalid_passcode() {
 }
 
 # Function to handle passcode verification
-passcode_verification() {
+verify_passcode() {
     local passcode_attempts=2
     while [[ $passcode_attempts -ge 0 ]]; do
         read -sp "Enter passcode: " passcode
@@ -27,3 +27,6 @@ passcode_verification() {
         fi
     done
 }
+
+# Main logic to call the passcode verification
+verify_passcode
