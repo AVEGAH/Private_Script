@@ -193,10 +193,10 @@ install_selected_script() {
     echo ""
     local index=1
     for script_name in "${!scripts[@]}"; do
-        echo -e "${BLUE}[$index] ${NC}${YELLOW}${script_name}${NC}"
+        echo -e "${BLUE}[${index}]${NC} ${YELLOW}${script_name}${NC}"
         index=$((index + 1))
     done
-    echo -e "${BLUE}[${index}] ${NC}${YELLOW}cancel${NC}"
+    echo -e "${BLUE}[${index}]${NC} ${YELLOW}cancel${NC}"
     echo ""
     select choice in "${!scripts[@]}" "cancel"; do
         execute_action "$choice"
