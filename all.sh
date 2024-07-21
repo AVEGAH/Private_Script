@@ -191,26 +191,30 @@ install_selected_script() {
     clear_screen
     echo -e "${YELLOW}Select the script to install:${NC}"
     echo ""
-    local index=1
-    local num_scripts=${#scripts[@]}
+
+    # List script names into an array
+    local script_names=("${!scripts[@]}")
+
+    # Calculate the number of scripts and lines needed
+    local num_scripts=${#script_names[@]}
     local scripts_per_line=2
     local num_lines=$(( (num_scripts + scripts_per_line - 1) / scripts_per_line ))
 
     for ((line=0; line<num_lines; line++)); do
-        local start_index=$((line * scripts_per_line + 1))
+        local start_index=$((line * scripts_per_line))
         local end_index=$((start_index + scripts_per_line - 1))
-        [ $end_index -gt $num_scripts ] && end_index=$num_scripts
+        [ $end_index -ge $num_scripts ] && end_index=$((num_scripts - 1))
 
         for ((i=start_index; i<=end_index; i++)); do
-            local script_name=${!scripts[@] | sed -n "${i}p"}
-            printf "%b[%d]%b %s   " "${BLUE}" "$i" "${NC}" "${YELLOW}${script_name}${NC}"
+            local script_name=${script_names[$i]}
+            printf "%b[%d]%b %s   " "${BLUE}" "$((i + 1))" "${NC}" "${YELLOW}${script_name}${NC}"
         done
         echo ""
     done
 
-    echo -e "${BLUE}[${num_scripts + 1}]${NC} ${YELLOW}cancel${NC}"
+    echo -e "${BLUE}[$((num_scripts + 1))]${NC} ${YELLOW}cancel${NC}"
     echo ""
-    select choice in "${!scripts[@]}" "cancel"; do
+    select choice in "${script_names[@]}" "cancel"; do
         execute_action "$choice"
         break
     done
