@@ -189,9 +189,19 @@ install_script() {
 # Function to install the selected script
 install_selected_script() {
     echo -e "${YELLOW}Select the script to install:${NC}"
+    PS3="Enter the number corresponding to your choice: "
     select choice in "${!scripts[@]}" "cancel"; do
-        execute_action "$choice"
-        break
+        if [[ -n "$choice" ]]; then
+            execute_action "$choice"
+            break
+        else
+            echo -e "${RED}Invalid choice. Please try again.${NC}"
+            attempts=$((attempts - 1))
+            if [[ $attempts -lt 0 ]]; then
+                echo -e "${RED}Too many invalid attempts. Exiting.${NC}"
+                exit 1
+            fi
+        fi
     done
 }
 
