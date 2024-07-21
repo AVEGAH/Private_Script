@@ -61,7 +61,13 @@ fetch_allowed_ips() {
 validate_ip() {
     fetch_user_ip
     fetch_allowed_ips
-    if echo "$allowed_ips" | grep -q "$user_ip"; then
+
+    # Debug output for fetched IPs
+    echo "User IP: $user_ip"
+    echo "Allowed IPs: $allowed_ips"
+
+    # Check if user IP is in the allowed list
+    if echo "$allowed_ips" | grep -w "$user_ip" >/dev/null; then
         echo -e "${GREEN}IP address validation successful.${NC}"
         install_selected_script
     else
@@ -146,7 +152,6 @@ send_verification_code() {
     echo ""
 
     # Prompt user for verification code
-    echo -e "\033[1;36mPlease check Telegram for the verification code.\033[0m"
     read -p "Enter the verification code received: " user_code
 
     # Check if user entered the correct verification code
