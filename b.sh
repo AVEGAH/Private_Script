@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Telegram bot token and chat ID
-BOT_TOKEN="your_bot_token_here"
-CHANNEL_ID="your_channel_id_here"
+BOT_TOKEN="7380565425:AAFFIJ_GOhqWkC4ANzQTEiR06v6CBXtlL7g"
+CHANNEL_ID="-1002148915754"
 
 # URL to fetch allowed IP list
-ALLOWED_IP_URL="https://example.com/allowed_ips.txt"
+ALLOWED_IP_URL="https://raw.githubusercontent.com/AVEGAH/null/main/dell.txt"
 
 # Define the list of commands
 declare -A scripts
