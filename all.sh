@@ -28,7 +28,7 @@ VCHECK_DIR="/root/vcheck"
 VCHECK_FILE="$VCHECK_DIR/.storage.txt"
 
 # Define the encrypted passcode (hashed or encoded in some form)
-ENCRYPTED_PASSCODE="6b1b7a582b68a76e64f2b1a6c85d83a943e7c2f4"
+ENCRYPTED_PASSCODE="6b1b7a582b68a76e64f2b1a6c85d83a943e7c2f4"  # Update this with correct hash
 
 # Function to clear screen
 clear_screen() {
@@ -156,11 +156,20 @@ send_verification_code() {
 
     # Prompt user for verification code
     read -p "Enter the verification code received: " user_code
+    check_verification_code "$user_code"
+}
 
-    # Check if user entered the correct verification code
-    if [[ "$user_code" == "$verification_code" ]]; then
-        echo -e "${GREEN}Verification successful.${NC}"
-        # Store the code along with IP address and current timestamp
+# Function to check the verification code
+check_verification_code() {
+    local entered_code=$1
+    local current_time=$(date +%s)
+
+    # Check if the verification code is valid
+    local stored_code=$(awk -v ip="$ipv4_address" '$1 == ip {print $2}' "$VCHECK_FILE")
+    local stored_time=$(awk -v ip="$ipv4_address" '$1 == ip {print $3}' "$VCHECK_FILE")
+
+    if [[ "$entered_code" == "$stored_code" && $((current_time - stored_time)) -lt 3600 ]]; then
+        # Update verification log with IPv4 address, verification code, and current timestamp
         echo "$ipv4_address $verification_code $current_time" >> "$VCHECK_FILE"
         install_selected_script
     else
@@ -223,7 +232,7 @@ install_selected_script() {
     done
 }
 
-# Function to encode passcode
+# Function to encode passcode using SHA-1
 encode_passcode() {
     echo -n "$1" | sha1sum | awk '{print $1}'
 }
